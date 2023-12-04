@@ -32,6 +32,9 @@ import (
 // re is defined only for private embedding
 type re = *regexp.Regexp
 
+// Regexp extends [regexp.Regexp] with methods allowing to store captures into struct T.
+//
+// All the [regexp.Regexp] methods are available.
 type Regexp[T any] struct {
 	re
 	getters []indexMap
@@ -42,15 +45,15 @@ type indexMap struct {
 	get   func(reflect.Value) reflect.Value
 }
 
-// Compile wraps [regexp.Compile] to extend [regexp.Regexp].
+// Compile wraps [regexp.Compile] to extend [regexp.Regexp] as [Regexp].
 //
-// Type T must be a struct type with struct tags structTag that should match
+// Type T must be a struct type with struct tags structTag that must match
 // names of submatches of the regexp. Submatches names are either integers or
 // defined using the capturing group (?P<name>re) (see [regexp/syntax]) and are exposed by
 // [regexp.Regexp.SubexpNames].
 // See also [regexp.Regexp.Expand] for capture naming constraints.
 //
-// Recommended tag names: "re", "rx", or "regexp"
+// Recommended tag names: "re", "rx", or "regexp".
 func Compile[T any](expr string, structTag string) (*Regexp[T], error) {
 	if structTag == "" {
 		panic("invalid tag name")
