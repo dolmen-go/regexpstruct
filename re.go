@@ -67,8 +67,8 @@ func Compile[T any](expr string, structTag string) (*Regexp[T], error) {
 	}
 	matchesNames := re.SubexpNames()
 
-	structGetters := extractStructSetters(reflect.TypeOf((*T)(nil)).Elem(), structTag)
-	if len(structGetters) == 0 {
+	fields := extractFields(reflect.TypeOf((*T)(nil)).Elem(), structTag)
+	if len(fields) == 0 {
 		var zeroT T
 		panic(fmt.Errorf("type %T has no fields with stuct tag %q", zeroT, structTag))
 	}
@@ -79,7 +79,7 @@ func Compile[T any](expr string, structTag string) (*Regexp[T], error) {
 		if name == "" {
 			continue
 		}
-		if get := structGetters[name]; get != nil {
+		if get := fields[name]; get != nil {
 			captures = append(captures, capture{index: i, get: get})
 		}
 	}
@@ -107,11 +107,11 @@ var (
 	typeTextUnmarshaler = reflect.TypeOf((*interface{ UnmarshalText([]byte) error })(nil)).Elem()
 )
 
-func extractStructSetters(t reflect.Type, tagName string) (getters map[string]func(reflect.Value) reflect.Value) {
+func extractFields(t reflect.Type, tagName string) (fields map[string]func(reflect.Value) reflect.Value) {
 	switch t.Kind() {
 	case reflect.Ptr:
-		getters = extractStructSetters(t.Elem(), tagName)
-		wrapGetters(getters,
+		fields = extractFields(t.Elem(), tagName)
+		wrapFields(fields,
 			func(v reflect.Value) reflect.Value {
 				if v.IsNil() {
 					v.Set(reflect.New(v.Type().Elem()))
@@ -123,8 +123,8 @@ func extractStructSetters(t reflect.Type, tagName string) (getters map[string]fu
 			index := i
 			f := t.Field(index)
 			if tag, ok := f.Tag.Lookup(tagName); ok && tag != "" {
-				if getters == nil {
-					getters = make(map[string]func(reflect.Value) reflect.Value)
+				if fields == nil {
+					fields = make(map[string]func(reflect.Value) reflect.Value)
 				}
 
 				/*
@@ -138,22 +138,22 @@ func extractStructSetters(t reflect.Type, tagName string) (getters map[string]fu
 					(f.Type.Name() == "" ||
 						(!f.Type.AssignableTo(typeSetter) && !f.Type.AssignableTo(typeTextUnmarshaler)))
 				if isStruct {
-					getters2 := extractStructSetters(f.Type, tagName)
-					for name, g := range getters2 {
+					fields2 := extractFields(f.Type, tagName)
+					for name, g := range fields2 {
 						getter := g
-						getters[tag+"__"+name] = func(v reflect.Value) reflect.Value { return getter(v.Field(index)) }
+						fields[tag+"__"+name] = func(v reflect.Value) reflect.Value { return getter(v.Field(index)) }
 					}
 				} else {
-					getters[tag] = func(v reflect.Value) reflect.Value { return v.Field(index) }
+					fields[tag] = func(v reflect.Value) reflect.Value { return v.Field(index) }
 				}
 			} else if f.Anonymous { // recurse into embedded struct
-				getters2 := extractStructSetters(f.Type, tagName)
-				wrapGetters(getters2, func(v reflect.Value) reflect.Value { return v.Field(index) })
-				if getters == nil {
-					getters = getters2
+				fields2 := extractFields(f.Type, tagName)
+				wrapFields(fields2, func(v reflect.Value) reflect.Value { return v.Field(index) })
+				if fields == nil {
+					fields = fields2
 				} else {
-					for name, getter := range getters2 {
-						getters[name] = getter
+					for name, getter := range fields2 {
+						fields[name] = getter
 					}
 				}
 			}
@@ -163,10 +163,10 @@ func extractStructSetters(t reflect.Type, tagName string) (getters map[string]fu
 	return
 }
 
-func wrapGetters(getters map[string]func(reflect.Value) reflect.Value, w func(reflect.Value) reflect.Value) {
-	for name := range getters {
-		inner := getters[name]
-		getters[name] = func(v reflect.Value) reflect.Value { return inner(w(v)) }
+func wrapFields(fields map[string]func(reflect.Value) reflect.Value, w func(reflect.Value) reflect.Value) {
+	for name := range fields {
+		inner := fields[name]
+		fields[name] = func(v reflect.Value) reflect.Value { return inner(w(v)) }
 	}
 }
 
