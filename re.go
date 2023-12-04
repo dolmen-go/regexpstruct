@@ -37,10 +37,10 @@ type re = *regexp.Regexp
 // All the [regexp.Regexp] methods are available.
 type Regexp[T any] struct {
 	re
-	getters []indexMap
+	captures []capture
 }
 
-type indexMap struct {
+type capture struct {
 	index int
 	get   func(reflect.Value) reflect.Value
 }
@@ -73,20 +73,20 @@ func Compile[T any](expr string, structTag string) (*Regexp[T], error) {
 		panic(fmt.Errorf("type %T has no fields with stuct tag %q", zeroT, structTag))
 	}
 
-	getters := make([]indexMap, 0, len(matchesNames))
+	captures := make([]capture, 0, len(matchesNames))
 	for i := 1; i < len(matchesNames); i++ {
 		name := matchesNames[i]
 		if name == "" {
 			continue
 		}
-		if getter := structGetters[name]; getter != nil {
-			getters = append(getters, indexMap{index: i, get: getter})
+		if get := structGetters[name]; get != nil {
+			captures = append(captures, capture{index: i, get: get})
 		}
 	}
 
 	return &Regexp[T]{
-		re:      re,
-		getters: getters,
+		re:       re,
+		captures: captures,
 	}, nil
 }
 
@@ -171,8 +171,8 @@ func wrapGetters(getters map[string]func(reflect.Value) reflect.Value, w func(re
 	}
 }
 
-func deserialize(matches []string, getters []indexMap, target reflect.Value) {
-	for _, m := range getters {
+func deserialize(matches []string, captures []capture, target reflect.Value) {
+	for _, m := range captures {
 		m.get(target).SetString(matches[m.index])
 	}
 }
@@ -184,7 +184,7 @@ func (re *Regexp[T]) FindStringStruct(s string, target *T) bool {
 	if matches == nil {
 		return false
 	}
-	deserialize(matches, re.getters, reflect.ValueOf(target).Elem())
+	deserialize(matches, re.captures, reflect.ValueOf(target).Elem())
 	return true
 }
 
@@ -200,7 +200,7 @@ func (re *Regexp[T]) FindAllStringStruct(s string, n int) []T {
 	r := make([]T, nbMatches)
 	v := reflect.ValueOf(r)
 	for i := 0; i < nbMatches; i++ {
-		deserialize(matches[i], re.getters, v.Index(i))
+		deserialize(matches[i], re.captures, v.Index(i))
 	}
 	return r
 }
