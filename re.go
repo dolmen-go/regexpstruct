@@ -19,8 +19,8 @@
 // with captures names.
 //
 // The following methods are exposed:
-// * [Regexp.FindStringStruct]: similar to [regexp.FindStringSubmatch]
-// * [Regexp.FindAllStringStruct]: similar to [regexp.FindAllStringSubmatch]
+//   - [Regexp.FindStringStruct]: similar to [regexp.FindStringSubmatch]
+//   - [Regexp.FindAllStringStruct]: similar to [regexp.FindAllStringSubmatch]
 package regexpstruct
 
 import (
