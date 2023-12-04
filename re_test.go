@@ -77,6 +77,40 @@ func TestDeep(t *testing.T) {
 	}
 }
 
-func TestEmbeded(t *testing.T) {
+func TestEmbedded(t *testing.T) {
+	type address struct {
+		City    string `rx:"city"`
+		Country string `rx:"country"`
+	}
 
+	type person struct {
+		Name string `rx:"name"`
+		address
+	}
+
+	re := regexpstruct.MustCompile[person](`^(?P<name>.*) / (?P<city>.*) / (?P<country>.*)$`, "rx")
+	// t.Logf("%#v", re)
+
+	s := `Leonardo da Vinci / Florence / Italia`
+
+	var p person
+	if !re.FindStringStruct(s, &p) {
+		t.Fatal("no match")
+	}
+
+	t.Logf("%#v", p)
+
+	if p.Name != "Leonardo da Vinci" {
+		t.FailNow()
+	}
+	if p.City != "Florence" {
+		t.FailNow()
+	}
+	if p.Country != "Italia" {
+		t.FailNow()
+	}
+
+	if p != re.FindAllStringStruct(s, 1)[0] {
+		t.Error("mismatch between FindStringStruct and FindAllStringStruct")
+	}
 }

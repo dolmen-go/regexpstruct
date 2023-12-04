@@ -146,13 +146,12 @@ func extractStructSetters(t reflect.Type, tagName string) (getters map[string]fu
 				} else {
 					getters[tag] = func(v reflect.Value) reflect.Value { return v.Field(index) }
 				}
-			} else if f.Anonymous { // recurse into embeded struct
+			} else if f.Anonymous { // recurse into embedded struct
 				getters2 := extractStructSetters(f.Type, tagName)
 				wrapGetters(getters2, func(v reflect.Value) reflect.Value { return v.Field(index) })
 				if getters == nil {
 					getters = getters2
 				} else {
-					getters = make(map[string]func(reflect.Value) reflect.Value)
 					for name, getter := range getters2 {
 						getters[name] = getter
 					}
